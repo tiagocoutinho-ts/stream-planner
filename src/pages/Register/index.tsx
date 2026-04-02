@@ -1,8 +1,10 @@
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import { useForm } from "react-hook-form";
+import { Navigate, useNavigate } from "react-router-dom";
 
 export function Register() {
+  const navigate = useNavigate()
   const {
     register,
     handleSubmit,
@@ -18,6 +20,7 @@ export function Register() {
       );
       console.log("Usuário logado:", userCredential.user);
       alert("Sucesso!");
+      navigate("/dashboard")
     } catch (error) {
       console.error("Erro:", error.code);
       alert("Erro ao criar conta.");

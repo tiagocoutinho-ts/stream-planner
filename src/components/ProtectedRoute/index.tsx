@@ -5,25 +5,25 @@ import { auth } from "../../services/firebase";
 
 
 export function ProtectedRoute({ children }) {
-  // const [user, setUser] = useState(null);
-  // const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // useEffect(() => {
-  //   // Ouve se o usuário está logado ou não
-  //   const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-  //     setUser(currentUser);
-  //     setLoading(false);
-  //   });
+  useEffect(() => {
+    // Ouve se o usuário está logado ou não
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
 
-  //   return () => unsubscribe();
-  // }, []);
+    return () => unsubscribe();
+  }, []);
 
-  // if (loading) {
-  //   return <div>Carregando...</div>; // Aqui você pode colocar um Spinner
-  // }
+  if (loading) {
+    return <div>Carregando...</div>; // Aqui você pode colocar um Spinner
+  }
 
-  // if (!user) {
-  //   return <Navigate to="/login" />;
-  // }
+  if (!user) {
+    return <Navigate to="/entrar" />;
+  }
   return children;
 }
