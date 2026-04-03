@@ -3,6 +3,8 @@ import { auth } from "../../services/firebase";
 import { useState, useEffect } from "react";
 import api from "../../services/tmdb";
 import { db } from "../../services/firebase";
+import { NavBar } from "../../components/NavBar";
+import type { MovieTMDB, WatchlistItem } from "../../interfaces";
 import {
   collection,
   addDoc,
@@ -16,9 +18,9 @@ import {
 
 export function Dashboard() {
   const user = auth.currentUser;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState([]);
-  const [watchlist, setWatchlist] = useState([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [results, setResults] = useState<MovieTMDB[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -36,7 +38,7 @@ export function Dashboard() {
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as WatchlistItem[];
       setWatchlist(items);
     });
 
@@ -55,7 +57,7 @@ export function Dashboard() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
-  const handleSearch = async (query) => {
+  const handleSearch = async (query: string): Promise<void> => {
     try {
       const response = await api.get("/search/multi", {
         params: {
@@ -70,7 +72,7 @@ export function Dashboard() {
     }
   };
 
-  const handleAddToWatchlist = async (movie) => {
+  const handleAddToWatchlist = async (movie: MovieTMDB): Promise<void> => {
     if (!user) return alert("Ops! Logue novamente.");
 
     try {
@@ -93,9 +95,12 @@ export function Dashboard() {
     }
   };
 
-  const handleRemoveFromWatchlist = async (docId) => {
+  const handleRemoveFromWatchlist = async (docId: string): Promise<void> => {
+
+    if (!user) return;
+
     try {
-      // Referenciamos o documento específico: users -> seuID -> watchlist -> ID_DO_FILME
+      // users -> seuID -> watchlist -> ID_DO_FILME
       const movieDocRef = doc(db, "users", user.uid, "watchlist", docId);
 
       await deleteDoc(movieDocRef);
@@ -108,39 +113,17 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8">
       {/* NAVBAR */}
-      <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-12 border-b border-slate-800 pb-6">
-        <h1 className="text-2xl font-bold text-purple-500 font-mono tracking-tighter">
-          StreamPlanner
-        </h1>
-
-        <div className="relative w-full md:w-1/3">
-          <input
-            type="text"
-            placeholder="Pesquisar filmes ou séries..."
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-400">{user?.email}</span>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm transition-all"
-          >
-            Sair
-          </button>
-        </div>
-      </header>
+      <NavBar
+        setSearchTerm={setSearchTerm}
+        searchTerm={searchTerm}
+        handleLogout={handleLogout}
+        user={user}
+      />
 
       <main>
         {/* RESULTADOS DA BUSCA - Aparece apenas se houver pesquisa */}
         {searchTerm.length > 0 && (
           <section className="mb-12 animate-in fade-in duration-500">
-            <h2 className="text-xl font-semibold text-purple-400 mb-6">
-              Resultados para "{searchTerm}"
-            </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
               {results.map((item) => (
                 <div
