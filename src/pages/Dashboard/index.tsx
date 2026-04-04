@@ -1,7 +1,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import { useState, useEffect } from "react";
-import api from "../../services/tmdb";
 import { db } from "../../services/firebase";
 import { NavBar } from "../../components/NavBar";
 import type { MovieTMDB, WatchlistItem } from "../../interfaces";
@@ -15,6 +14,8 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { CardSearchResults } from "../../components/CardSearchResults";
+import { CardWatchList } from "../../components/CardWatchList";
 
 export function Dashboard() {
   const user = auth.currentUser;
@@ -59,14 +60,9 @@ export function Dashboard() {
 
   const handleSearch = async (query: string): Promise<void> => {
     try {
-      const response = await api.get("/search/multi", {
-        params: {
-          query: query,
-          language: "pt-BR",
-          include_adult: false,
-        },
-      });
-      setResults(response.data.results);
+      const response = await fetch(`/api/movies?query=${encodeURIComponent(query)}`);
+      const data = await response.json()
+      setResults(data.results);
     } catch (error) {
       console.error("Erro ao buscar filmes:", error);
     }
@@ -96,7 +92,6 @@ export function Dashboard() {
   };
 
   const handleRemoveFromWatchlist = async (docId: string): Promise<void> => {
-
     if (!user) return;
 
     try {
@@ -121,92 +116,27 @@ export function Dashboard() {
       />
 
       <main>
-        {/* RESULTADOS DA BUSCA - Aparece apenas se houver pesquisa */}
-        {searchTerm.length > 0 && (
-          <section className="mb-12 animate-in fade-in duration-500">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-              {results.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-slate-900 rounded-lg p-2 border border-slate-800 hover:border-purple-500 transition-all group"
-                >
-                  <div className="overflow-hidden rounded-md relative">
-                    <img
-                      src={
-                        item.poster_path
-                          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-                          : "https://via.placeholder.com/500x750?text=Sem+Foto"
-                      }
-                      alt={item.title || item.name}
-                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform"
-                    />
-                  </div>
-                  <h3 className="text-sm mt-3 font-medium truncate">
-                    {item.title || item.name}
-                  </h3>
-                  <button
-                    className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 rounded font-semibold transition-colors"
-                    onClick={() => handleAddToWatchlist(item)}
-                  >
-                    + Adicionar
-                  </button>
-                </div>
-              ))}
+        {/* Se houver pesquisa, mostra os resultados */}
+        {searchTerm.length > 0 ? (
+          <CardSearchResults
+            results={results}
+            handleAddToWatchlist={handleAddToWatchlist}
+          />
+        ) : (
+          /* Se NÃO houver pesquisa, mostra a "Minha Lista" */
+          <section className="mt-8 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold border-l-4 border-purple-500 pl-3">
+                Minha Lista ({watchlist.length})
+              </h2>
             </div>
+
+            <CardWatchList
+              watchlist={watchlist}
+              handleRemoveFromWatchlist={handleRemoveFromWatchlist}
+            />
           </section>
         )}
-
-        {/* MINHA LISTA - Aparece sempre ou esconde quando pesquisa */}
-        <section className="mt-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold border-l-4 border-purple-500 pl-3">
-              Minha Lista ({watchlist.length})
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {watchlist.map((movie) => (
-              <div
-                key={movie.id}
-                className="bg-slate-900 rounded-lg p-2 border border-slate-800 relative group"
-              >
-                {/* Botão de Remover (X) no topo do card */}
-                <button
-                  onClick={() => handleRemoveFromWatchlist(movie.id)}
-                  className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  title="Remover da lista"
-                >
-                  ✕
-                </button>
-
-                <img
-                  src={
-                    movie.posterPath
-                      ? `https://image.tmdb.org/t/p/w500${movie.posterPath}`
-                      : "https://via.placeholder.com/500x750?text=Sem+Foto"
-                  }
-                  alt={movie.title}
-                  className="rounded-md w-full h-auto"
-                />
-
-                <h3 className="text-sm mt-2 font-medium truncate">
-                  {movie.title}
-                </h3>
-
-                <a
-                  href={`https://www.justwatch.com/br/busca?q=${encodeURIComponent(
-                    movie.title
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full mt-2 bg-slate-800 hover:bg-slate-700 text-[10px] text-center py-1 rounded transition-colors"
-                >
-                  📺 Onde assistir?
-                </a>
-              </div>
-            ))}
-          </div>
-        </section>
       </main>
     </div>
   );

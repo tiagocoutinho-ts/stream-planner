@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-// CORREÇÃO: Import padrão sem chaves para arquivos de imagem
 import ListImg from "../../assets/my-list-lading-page.png"; 
 import { Film, List, Search, ArrowRight } from "lucide-react";
 
