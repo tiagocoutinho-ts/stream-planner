@@ -1,4 +1,4 @@
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged, type User } from "firebase/auth"; // Adicionei User e onAuthStateChanged
 import { auth } from "../../services/firebase";
 import { useState, useEffect } from "react";
 import { db } from "../../services/firebase";
@@ -18,15 +18,20 @@ import { CardSearchResults } from "../../components/CardSearchResults";
 import { CardWatchList } from "../../components/CardWatchList";
 
 export function Dashboard() {
-  const user = auth.currentUser;
+  const [user, setUser] = useState<User | null>(auth.currentUser);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [results, setResults] = useState<MovieTMDB[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
+  // 2. Escutar mudanças na autenticação (Essencial para não travar)
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
+  // 3. Buscar a Watchlist quando o usuário estiver pronto
   useEffect(() => {
     if (!user) return;
 
@@ -46,6 +51,7 @@ export function Dashboard() {
     return () => unsubscribe();
   }, [user]);
 
+  // 4. Busca com Debounce
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchTerm.trim()) {
@@ -61,20 +67,31 @@ export function Dashboard() {
   const handleSearch = async (query: string): Promise<void> => {
     try {
       const response = await fetch(`/api/movies?query=${encodeURIComponent(query)}`);
-      const data = await response.json()
-      setResults(data.results);
+      
+      // Se a API falhar (404/500), evita travar o app
+      if (!response.ok) {
+        console.error("Erro na API da Vercel");
+        return;
+      }
+
+      const data = await response.json();
+      // Garante que results seja sempre um array, mesmo que venha vazio
+      setResults(data.results || []);
     } catch (error) {
       console.error("Erro ao buscar filmes:", error);
+      setResults([]);
     }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
   };
 
   const handleAddToWatchlist = async (movie: MovieTMDB): Promise<void> => {
     if (!user) return alert("Ops! Logue novamente.");
 
     try {
-      // Caminho: users -> SEU_ID -> watchlist -> NOVO_FILME
       const userListRef = collection(db, "users", user.uid, "watchlist");
-
       await addDoc(userListRef, {
         movieId: movie.id,
         title: movie.title || movie.name,
@@ -85,7 +102,7 @@ export function Dashboard() {
       });
 
       alert(`${movie.title || movie.name} foi para sua lista!`);
-      setSearchTerm(""); // Limpa a busca para você ver sua lista (que faremos a seguir)
+      setSearchTerm(""); 
     } catch (error) {
       console.error("Erro ao salvar:", error);
     }
@@ -93,13 +110,9 @@ export function Dashboard() {
 
   const handleRemoveFromWatchlist = async (docId: string): Promise<void> => {
     if (!user) return;
-
     try {
-      // users -> seuID -> watchlist -> ID_DO_FILME
       const movieDocRef = doc(db, "users", user.uid, "watchlist", docId);
-
       await deleteDoc(movieDocRef);
-      // O onSnapshot vai perceber a mudança e atualizar a tela sozinho!
     } catch (error) {
       console.error("Erro ao remover filme:", error);
     }
@@ -107,7 +120,6 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8">
-      {/* NAVBAR */}
       <NavBar
         setSearchTerm={setSearchTerm}
         searchTerm={searchTerm}
@@ -115,15 +127,13 @@ export function Dashboard() {
         user={user}
       />
 
-      <main>
-        {/* Se houver pesquisa, mostra os resultados */}
+      <main className="max-w-7xl mx-auto">
         {searchTerm.length > 0 ? (
           <CardSearchResults
             results={results}
             handleAddToWatchlist={handleAddToWatchlist}
           />
         ) : (
-          /* Se NÃO houver pesquisa, mostra a "Minha Lista" */
           <section className="mt-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold border-l-4 border-purple-500 pl-3">
